@@ -10,17 +10,61 @@ You may obtain a copy of the BSD 3-Clause License at
 https://github.com/fluid-lab/gamepad-navigator/blob/master/LICENSE
 */
 
-/* global gamepad */
+/* global gamepad, chrome */
 
 (function (fluid) {
     "use strict";
 
     fluid.registerNamespace("gamepad.configurationDashboard");
+    fluid.registerNamespace("gamepad.configurationDashboardUtils");
 
     fluid.defaults("gamepad.configurationDashboard", {
         gradeNames: ["fluid.viewComponent"],
-        buttonSelectOptions: [
-            ["vacant", "Do nothing", 1],
+        selectors: {
+            configurationMenu: ".configuration-menu",
+            buttonsContainer: ".buttons-container",
+            setAllToNoneButton: "#set-to-none",
+            restoreDefaultsButton: "#set-to-default",
+            saveChangesButton: "#save-changes"
+        },
+        listeners: {
+            "onCreate.loadConfigurationPanel": "{that}.createPanel",
+            "onCreate.handleScroll": {
+                funcName: "{that}.handleScroll",
+                after: "loadConfigurationPanel"
+            },
+            "onCreate.attachListeners": {
+                funcName: "{that}.attachListeners",
+                after: "loadConfigurationPanel"
+            }
+        },
+        buttonsDescription: {
+            "0": "A (Xbox), &#10799; (PS4)",
+            "1": "B (Xbox), O (PS4)",
+            "2": "X (Xbox), &#9723; (PS4)",
+            "3": "Y (Xbox), &#9651; (PS4)",
+            "4": "Left Bumper",
+            "5": "Right Bumper",
+            "6": "Left Trigger",
+            "7": "Right Trigger",
+            "8": "Back (Xbox), Share (PS4)",
+            "9": "Start (Xbox), Options (PS4)",
+            "10": "Left Thumbstick Button",
+            "11": "Right Thumbstick Button",
+            "12": "D-Pad Up Button",
+            "13": "D-Pad Down Button",
+            "14": "D-Pad Left Button",
+            "15": "D-Pad Right Button"
+        },
+        axesDescription: {
+            "0": "Left Thumbstick Horizontal Direction",
+            "1": "Left Thumbstick Vertical Direction",
+            "2": "Right Thumbstick Horizontal Direction",
+            "3": "Right Thumbstick Vertical Direction"
+        },
+        buttonOptionsWithDefaultIndex: [
+            // [Action, Action label, Default button index for action]
+            ["vacant", "None", 1],
             ["click", "Click", 0],
             ["previousPageInHistory", "History back button", 2],
             ["nextPageInHistory", "History next button", 3],
@@ -39,167 +83,187 @@ https://github.com/fluid-lab/gamepad-navigator/blob/master/LICENSE
             ["goToPreviousWindow", "Switch to the previous browser window", 12],
             ["goToNextWindow", "Switch to the next browser window", 13]
         ],
-        axesSelectOptions: [
-            ["vacant", "Do nothing", null],
+        axesOptionsWithDefaultIndex: [
+            // [Action, Action label, Default axes index for action]
+            ["vacant", "None", null],
             ["scrollHorizontally", "Scroll horizontally", 0],
             ["scrollVertically", "Scroll vertically", 1],
             ["thumbstickHistoryNavigation", "History navigation", 2],
             ["thumbstickTabbing", "Focus on the previous/next element", 3]
         ],
-        listeners: {
-            "onCreate.loadConfigurationPanel": "{that}.createPanel"
-        },
+        actionsWithSpeedFactorOption: [
+            "reverseTab",
+            "forwardTab",
+            "scrollLeft",
+            "scrollRight",
+            "scrollUp",
+            "scrollDown",
+            "scrollHorizontally",
+            "scrollVertically",
+            "thumbstickTabbing"
+        ],
+        actionsWithBackgroundOption: ["openNewTab", "openNewWindow"],
+        actionsWithInvertOption: [
+            "scrollHorizontally",
+            "scrollVertically",
+            "thumbstickHistoryNavigation",
+            "thumbstickTabbing"
+        ],
         invokers: {
             createPanel: {
                 funcName: "gamepad.configurationDashboard.createPanel",
+                args: ["{that}", "{that}.dom.configurationMenu"]
+            },
+            handleScroll: {
+                funcName: "gamepad.configurationDashboardUtils.handleScroll",
+                args: ["{that}.dom.configurationMenu"]
+            },
+            modifyDropdownMenu: {
+                funcName: "gamepad.configurationDashboardUtils.modifyDropdownMenu",
                 args: ["{that}"]
+            },
+            listenDropdownChanges: {
+                funcName: "gamepad.configurationDashboardUtils.listenDropdownChanges",
+                args: ["{that}"]
+            },
+            changeConfigMenuOptions: {
+                funcName: "gamepad.configurationDashboardUtils.changeConfigMenuOptions",
+                args: ["{that}", "{arguments}.0"]
+            },
+            createInputActionDropdown: {
+                funcName: "gamepad.configurationDashboardUtils.createInputActionDropdown",
+                args: [
+                    "{that}",
+                    "{arguments}.0",
+                    "{arguments}.1",
+                    "{arguments}.2",
+                    "{arguments}.3",
+                    "{arguments}.4"
+                ]
+            },
+            createSpeedFactorOption: {
+                funcName: "gamepad.configurationDashboardUtils.createSpeedFactorOption",
+                args: ["{arguments}.0", "{arguments}.1", "{arguments}.2"]
+            },
+            createThirdConfigurationOption: {
+                funcName: "gamepad.configurationDashboardUtils.createThirdConfigurationOption",
+                args: [
+                    "{arguments}.0",
+                    "{arguments}.1",
+                    "{arguments}.2",
+                    "{arguments}.3"
+                ]
+            },
+            setAllToNoneListener: {
+                funcName: "gamepad.configurationDashboardUtils.setAllToNoneListener",
+                args: ["{that}", "{that}.dom.saveChangesButton"]
+            },
+            setToDefaultListener: {
+                funcName: "gamepad.configurationDashboardUtils.setToDefaultListener",
+                args: ["{that}", "{that}.dom.saveChangesButton"]
+            },
+            saveChangesListener: "gamepad.configurationDashboardUtils.saveChangesListener",
+            attachListeners: {
+                funcName: "gamepad.configurationDashboardUtils.attachListeners",
+                args: [
+                    "{that}",
+                    "{that}.dom.setAllToNoneButton",
+                    "{that}.dom.restoreDefaultsButton",
+                    "{that}.dom.saveChangesButton"
+                ]
+            },
+            toggleSaveButtonState: {
+                funcName: "gamepad.configurationDashboardUtils.toggleSaveButtonState",
+                args: ["{that}.dom.saveChangesButton", "{arguments}.0"]
             }
         }
     });
 
     /**
      *
-     * Create a configuration panel inside the Chrome extension's popup window..
+     * Create a configuration panel inside the Chrome extension's popup window.
      *
      * @param {Object} that - The configurationDashboard component.
+     * @param {Array} configurationMenu - The jQuery selector of the configuration menu.
      *
      */
-    gamepad.configurationDashboard.createPanel = function (that) {
-        // Obtain the configuration dashboard selector.
-        var configurationDashboard = document.querySelector(".configuration-dashboard");
-        configurationDashboard.innerHTML = "";
-
-        /**
-         * Create the gamepad image DOM element and inject it inside configuration
-         * dashboard.
-         */
-        var gamepadImage = document.createElement("img");
-        gamepadImage.classList.add("gamepad-controls");
-        gamepadImage.setAttribute("src", "../images/gamepad.svg");
-        configurationDashboard.appendChild(gamepadImage);
-
-        // Create the gamepad controls configuration menu.
-        var configurationMenu = document.createElement("div");
-        configurationMenu.classList.add("configuration-menu");
-
-        var totalInputs = 20,
-            axesLabels = [
-                "Left Axis Horizontal Direction",
-                "Left Axis Vertical Direction",
-                "Right Axis Horizontal Direction",
-                "Right Axis Vertical Direction"
-            ];
+    gamepad.configurationDashboard.createPanel = function (that, configurationMenu) {
+        configurationMenu = configurationMenu[0];
+        configurationMenu.innerHTML = "";
 
         /**
          * Create the options menu for each input and inject it inside gamepad controls
-         * configuration menu.
+         * configuration menu/panel.
          */
-        for (var inputCounter = 0; inputCounter < totalInputs; inputCounter++) {
-            var inputMenuItem = document.createElement("div");
-            inputMenuItem.classList.add("menu-item");
+        chrome.storage.local.get(["gamepadConfiguration"], function (storedConfigurationWrapper) {
+            var totalInputs = 20,
+                storedGamepadConfiguration = fluid.get(storedConfigurationWrapper, "gamepadConfiguration");
+            for (var inputCounter = 0; inputCounter < totalInputs; inputCounter++) {
+                // Compute input label and index of input.
+                var inputIndex = inputCounter % 16,
+                    isAxes = inputCounter / 16 >= 1,
+                    inputName = null,
+                    inputIdentifier = null,
+                    storedInputData = null;
 
-            // Compute input label and index of input.
-            var inputIndex = inputCounter % 16,
-                isAxes = inputCounter / 16 >= 1,
-                inputName = null,
-                forAttributeValue = null;
-            if (isAxes) {
-                inputName = axesLabels[inputIndex];
-                forAttributeValue = "axes-" + inputIndex;
-            }
-            else {
-                inputName = "Button " + inputIndex;
-                forAttributeValue = "button-" + inputIndex;
-            }
+                // Create the container div for the configuration options.
+                var inputMenuItem = document.createElement("div");
+                if (isAxes) {
+                    inputName = that.options.axesDescription[inputIndex];
+                    inputIdentifier = "axes-" + inputIndex;
 
-            // Set attributes and text of the input label.
-            var inputLabel = document.createElement("h1");
-            inputLabel.classList.add(forAttributeValue);
-            inputLabel.innerHTML = inputName;
-            inputMenuItem.appendChild(inputLabel);
-
-            // Create a label for the input action and inject it.
-            var actionLabel = document.createElement("label");
-            actionLabel.setAttribute("for", forAttributeValue + "-action");
-            actionLabel.innerHTML = "Action:";
-            inputMenuItem.appendChild(actionLabel);
-
-            // Create the options menu for the input action.
-            var inputSelectMenu = document.createElement("select");
-            inputSelectMenu.setAttribute("name", forAttributeValue + "-action");
-
-            var actionsList = isAxes ? that.options.axesSelectOptions : that.options.buttonSelectOptions;
-            // eslint-disable-next-line
-            fluid.each(actionsList, function (optionArray, optionIndex) {
-                var option = document.createElement("option");
-                option.setAttribute("value", optionArray[0]);
-                option.innerHTML = optionArray[1];
-                if (optionArray[2] === inputIndex) {
-                    option.setAttribute("selected", "");
+                    // Extract the current axes data from the stored data.
+                    if (fluid.get(storedGamepadConfiguration, "axes")) {
+                        storedInputData = storedGamepadConfiguration.axes[inputIndex];
+                    }
                 }
-                inputSelectMenu.appendChild(option);
-            });
+                else {
+                    var buttonDescription = that.options.buttonsDescription[inputIndex];
+                    inputName = "Button " + inputIndex + ": " + buttonDescription;
+                    inputIdentifier = "button-" + inputIndex;
 
-            // Inject the input options menu into the DOM.
-            inputMenuItem.appendChild(inputSelectMenu);
+                    // Extract the current buttons data from the stored data.
+                    if (fluid.get(storedGamepadConfiguration, "buttons")) {
+                        storedInputData = storedGamepadConfiguration.buttons[inputIndex];
+                    }
+                }
+                inputMenuItem.classList.add("menu-item", inputIdentifier);
 
-            // Create a speed factor label and inject it inside DOM.
-            var speedFactorLabel = document.createElement("label");
-            speedFactorLabel.classList.add("speed-factor-label");
-            speedFactorLabel.setAttribute("for", forAttributeValue + "-speedFactor");
-            speedFactorLabel.innerHTML = "Speed Factor:";
-            inputMenuItem.appendChild(speedFactorLabel);
+                // Set attributes and text of the input label.
+                var inputLabel = document.createElement("h1");
+                inputLabel.innerHTML = inputName;
+                inputMenuItem.appendChild(inputLabel);
 
-            // Create a speed factor input box and inject it.
-            var speedFactorInput = document.createElement("input");
-            inputSelectMenu.setAttribute("name", forAttributeValue + "-speedFactor");
-            speedFactorInput.setAttribute("type", "number");
-            speedFactorInput.classList.add("speed-factor");
-            speedFactorInput.setAttribute("placeholder", 1.0);
-            speedFactorInput.setAttribute("step", 0.1);
-            speedFactorInput.setAttribute("min", 0.5);
-            speedFactorInput.setAttribute("max", 2.5);
-            inputMenuItem.appendChild(speedFactorInput);
+                // Create the input menu configuration options.
+                var currentAction = fluid.get(storedInputData, "currentAction"),
+                    speedFactor = fluid.get(storedInputData, "speedFactor"),
+                    thirdConfigurationOption = fluid.get(storedInputData, isAxes ? "invert" : "background");
+                that.createInputActionDropdown(
+                    inputIdentifier,
+                    inputMenuItem,
+                    isAxes,
+                    inputIndex,
+                    currentAction
+                );
+                that.createSpeedFactorOption(inputIdentifier, inputMenuItem, speedFactor);
+                that.createThirdConfigurationOption(
+                    inputIdentifier,
+                    inputMenuItem,
+                    isAxes,
+                    thirdConfigurationOption
+                );
 
-            // Create and set the third configuration option label and inject it.
-            var thirdConfigurationOptionLabel = document.createElement("label");
-            thirdConfigurationOptionLabel.classList.add("checkbox-label");
-            thirdConfigurationOptionLabel.innerHTML = isAxes ? "Invert Action" : "Open new tab/window in background";
-            var forSuffix = isAxes ? "invert" : "background";
-            thirdConfigurationOptionLabel.setAttribute("for", forAttributeValue + "-" + forSuffix);
-            inputMenuItem.appendChild(thirdConfigurationOptionLabel);
+                // Inject the input menu inside the configuration menu/panel.
+                configurationMenu.appendChild(inputMenuItem);
 
-            // Create the third configuration option checkbox and inject it.
-            var thirdConfigurationOption = document.createElement("input");
-            thirdConfigurationOption.setAttribute("name", forAttributeValue + "-" + forSuffix);
-            thirdConfigurationOption.setAttribute("type", "checkbox");
-            inputMenuItem.appendChild(thirdConfigurationOption);
+                // Attach.
+                that.modifyDropdownMenu();
+                that.listenDropdownChanges();
+            }
+        });
+    };
 
-            configurationMenu.appendChild(inputMenuItem);
-        }
-
-        // Inject the configuration menu inside the configuration dashboard.
-        configurationDashboard.appendChild(configurationMenu);
-
-        // Create the progress bar and inject it inside the configuration dashboard.
-        var progressBar = document.createElement("div"),
-            progressIndicator = document.createElement("div");
-        progressBar.classList.add("progress-bar");
-        progressIndicator.classList.add("progress-indicator");
-        progressBar.appendChild(progressIndicator);
-        configurationDashboard.appendChild(progressBar);
-
-        // Create the buttons menu and inject it.
-        var buttonsContainer = document.createElement("div"),
-            setControlsButton = document.createElement("button"),
-            resetControlsButton = document.createElement("button");
-        setControlsButton.innerHTML = "Set Controls";
-        resetControlsButton.innerHTML = "Restore Defaults";
-        setControlsButton.classList.add("button");
-        resetControlsButton.classList.add("button");
-        buttonsContainer.classList.add("buttons-container");
-        buttonsContainer.appendChild(resetControlsButton);
-        buttonsContainer.appendChild(setControlsButton);
-        configurationDashboard.appendChild(buttonsContainer);
+    window.onload = function () {
+        gamepad.configurationDashboard(".configuration-dashboard");
     };
 })(fluid);
